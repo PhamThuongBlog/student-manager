@@ -274,7 +274,7 @@ EOF
                         -v "${REPORT_DIR}:/zap/wrk" \
                         zaproxy/zap-stable zap-baseline.py \
                         -t http://${APP_NAME}:8082 \
-                        -r zap-report.html || true
+                        -r zap-report.html -J zap-report.json || true
                 '''
             }
         }
@@ -304,11 +304,12 @@ EOF
                     echo "   Elasticsearch cluster: ${es}"
 
                     // Ship log ứng dụng vào Elasticsearch (đóng vai Filebeat → Logstash → ES)
+                    // Dùng node để JSON-escape log line đúng chuẩn (tránh lỗi JSON khi log có ký tự đặc biệt)
                     sh '''
                         docker logs --tail 50 ${APP_NAME} 2>&1 \
                           | while IFS= read -r line; do
                               TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-                              BODY="{\"log\":\"$line\",\"@timestamp\":\"$TS\"}"
+                              BODY=$(node -e 'console.log(JSON.stringify({log:process.argv[1],"@timestamp":process.argv[2]}))' "$line" "$TS")
                               curl -s -X POST "${ELASTICSEARCH_URL}/student-manager-logs/_doc" \
                                 -H 'Content-Type: application/json' \
                                 -d "$BODY" >/dev/null 2>&1
@@ -340,17 +341,54 @@ EOF
         stage('14. FEEDBACK') {
             when { expression { params.RUN_MONITOR } }
             steps {
-                echo '🔄 FEEDBACK — Tổng hợp findings → tạo Issues → quay lại PLAN'
-                script {
-                    echo '   - SonarQube bugs/vulns → GitHub Issue [QUAL-*]'
-                    echo '   - ZAP alerts           → GitHub Issue [SEC-*]'
-                    echo '   - Newman failures      → GitHub Issue [TEST-*]'
+                echo '🔄 FEEDBACK — Tổng hợp findings → tự động tạo GitHub Issues'
+                withCredentials([string(credentialsId: 'github-token', variable: 'GH_TOKEN')]) {
+                    sh '''
+                        ISSUES_FILE=issues.tmp
+                        : > "$ISSUES_FILE"
 
-                    // (Tuỳ chọn) Tự động mở issue bằng `gh`:
-                    //   gh issue create --repo PhamThuongBlog/student-manager \
-                    //     --title "[SEC-01] Xử lý alert của ZAP" --label security || true
+                        # 1) Newman: đếm assertion thất bại từ newman-report.json
+                        NF=$(node -e 'try{const r=require("./newman-report.json");console.log((r.run.failures||[]).length)}catch(e){console.log(-1)}')
+                        if [ "$NF" -gt 0 ]; then
+                            echo "TEST: $NF assertion(s) API thất bại" >> "$ISSUES_FILE"
+                        fi
 
-                    echo '   ∞ Developer fix → commit → push → pipeline tự chạy lại (PLAN).'
+                        # 2) Prometheus: app student-manager down?
+                        UP=$(curl -s "${PROMETHEUS_URL}/api/v1/query?query=up%7Bjob%3D%22student-manager%22%7D" || true)
+                        if ! echo "$UP" | grep -q '"1"'; then
+                            echo "MONITOR: app student-manager DOWN" >> "$ISSUES_FILE"
+                        fi
+
+                        # 3) Elasticsearch: có log ERROR?
+                        ERR=$(curl -s "${ELASTICSEARCH_URL}/student-manager-logs/_count" -H 'Content-Type: application/json' -d '{"query":{"match":{"log":"ERROR"}}}' || true)
+                        if echo "$ERR" | grep -qE '"count":[1-9]'; then
+                            echo "LOG: phát hiện log ERROR trong Elasticsearch" >> "$ISSUES_FILE"
+                        fi
+
+                        # 4) ZAP: có alert High/Critical? (dùng zap-report.json)
+                        if [ -f reports/zap-report.json ]; then
+                            ZAP_HIGH=$(node -e 'try{const r=require("./reports/zap-report.json");let n=0;for(const s of (r.sites||[])){for(const a of (s.alerts||[])){if(a.risk==="High"||a.risk==="Critical")n++}}console.log(n)}catch(e){console.log(-1)}')
+                            if [ "$ZAP_HIGH" -gt 0 ]; then
+                                echo "SEC: $ZAP_HIGH alert ZAP High/Critical" >> "$ISSUES_FILE"
+                            fi
+                        fi
+
+                        # 5) Tạo issue trên GitHub (REST API + token từ Jenkins credential)
+                        COUNT=0
+                        while IFS= read -r TITLE; do
+                            [ -z "$TITLE" ] && continue
+                            BODY=$(node -e 'console.log(JSON.stringify(process.argv[1]))' "Tự động sinh từ pipeline Lab10. Xem build: ${BUILD_URL}")
+                            PAYLOAD=$(node -e 'console.log(JSON.stringify({title:process.argv[1],body:process.argv[2],labels:["automated"]}))' "[BUILD-${BUILD_NUMBER}] $TITLE" "$BODY")
+                            curl -s -X POST \
+                                -H "Authorization: token ${GH_TOKEN}" \
+                                -H "Accept: application/vnd.github+json" \
+                                -d "$PAYLOAD" \
+                                https://api.github.com/repos/PhamThuongBlog/student-manager/issues >/dev/null
+                            COUNT=$((COUNT+1))
+                        done < "$ISSUES_FILE"
+
+                        echo "   ✅ Đã tạo $COUNT GitHub issue(s)."
+                    '''
                 }
             }
         }
