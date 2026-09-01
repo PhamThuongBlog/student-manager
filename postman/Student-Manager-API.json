@@ -189,7 +189,7 @@
           "raw": "http://student-manager:8082/api/students",
           "protocol": "http",
           "host": [
-            "localhost"
+            "student-manager"
           ],
           "port": "8082",
           "path": [
@@ -209,7 +209,7 @@
           "raw": "http://student-manager:8082/api/students/1",
           "protocol": "http",
           "host": [
-            "localhost"
+            "student-manager"
           ],
           "port": "8082",
           "path": [
@@ -244,7 +244,7 @@
           "raw": "http://student-manager:8082/api/students",
           "protocol": "http",
           "host": [
-            "localhost"
+            "student-manager"
           ],
           "port": "8082",
           "path": [
@@ -264,7 +264,7 @@
           "raw": "http://student-manager:8082/api/students/",
           "protocol": "http",
           "host": [
-            "localhost"
+            "student-manager"
           ],
           "port": "8082",
           "path": [
@@ -285,7 +285,7 @@
           "raw": "http://student-manager:8082/api/students/search?q=Nguyen",
           "protocol": "http",
           "host": [
-            "localhost"
+            "student-manager"
           ],
           "port": "8082",
           "path": [
@@ -312,7 +312,7 @@
           "raw": "http://student-manager:8082/api/students/health",
           "protocol": "http",
           "host": [
-            "localhost"
+            "student-manager"
           ],
           "port": "8082",
           "path": [
