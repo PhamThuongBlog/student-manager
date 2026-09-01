@@ -2,7 +2,6 @@ package com.devops.capstone.controller;
 
 import com.devops.capstone.model.Student;
 import com.devops.capstone.repository.StudentRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,8 +12,11 @@ import java.util.*;
 @RequestMapping("/api/students")
 public class StudentController {
 
-    @Autowired
-    private StudentRepository repository;
+    private final StudentRepository repository;
+
+    public StudentController(StudentRepository repository) {
+        this.repository = repository;
+    }
 
     // GET all students
     @GetMapping

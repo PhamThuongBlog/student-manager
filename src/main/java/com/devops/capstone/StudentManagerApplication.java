@@ -2,7 +2,6 @@ package com.devops.capstone;
 
 import com.devops.capstone.model.Student;
 import com.devops.capstone.repository.StudentRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -10,8 +9,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class StudentManagerApplication implements CommandLineRunner {
 
-    @Autowired
-    private StudentRepository repository;
+    private final StudentRepository repository;
+
+    public StudentManagerApplication(StudentRepository repository) {
+        this.repository = repository;
+    }
 
     public static void main(String[] args) {
         SpringApplication.run(StudentManagerApplication.class, args);

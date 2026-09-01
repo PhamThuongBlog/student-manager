@@ -44,7 +44,7 @@ pipeline {
         // ---------- Công cụ CI/CD ----------
         SONAR_HOST_URL = 'http://capstone-sonarqube:9000'
         NEXUS_URL      = 'http://capstone-nexus:8081'
-        DOCKER_USER    = 'YOUR_DOCKER_USERNAME'
+        DOCKER_USER    = 'phamthuongdocker'
 
         // ---------- Monitoring: ELK + Prometheus + Grafana ----------
         ELASTICSEARCH_URL = 'http://capstone-elasticsearch:9200'
@@ -142,7 +142,7 @@ pipeline {
             steps {
                 echo '🔍 SAST — SonarQube scan + Quality Gate'
                 withSonarQubeEnv('SonarQube') {   // <-- đổi tên server theo cấu hình của bạn
-                    sh 'mvn sonar:sonar -Dsonar.projectKey=student-manager'
+                    sh 'mvn sonar:sonar -Dsonar.projectKey=student-manager -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml'
                 }
             }
             post {
@@ -177,7 +177,22 @@ pipeline {
         stage('7. PUBLISH TO NEXUS') {
             steps {
                 echo '📤 RELEASE — Upload artifact lên Nexus Repository'
-                sh 'mvn deploy -DskipTests -DaltDeploymentRepository=nexus::default::${NEXUS_URL}/repository/maven-releases_Lab10/'
+                withCredentials([usernamePassword(credentialsId: 'nexus-credentials', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
+                    sh '''
+                        cat > nexus-settings.xml <<EOF
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+  <servers>
+    <server>
+      <id>nexus</id>
+      <username>${NEXUS_USER}</username>
+      <password>${NEXUS_PASS}</password>
+    </server>
+  </servers>
+</settings>
+EOF
+                        mvn deploy -DskipTests -s nexus-settings.xml -DaltDeploymentRepository=nexus::default::${NEXUS_URL}/repository/maven-releases_lab10/
+                    '''
+                }
             }
         }
 
@@ -211,7 +226,7 @@ pipeline {
                     docker stop ${APP_NAME} 2>/dev/null || true
                     docker rm ${APP_NAME} 2>/dev/null || true
                     docker run -d --name ${APP_NAME} \
-                        --network capstone_devops-net \
+                        --network configs_devops-net \
                         -p ${APP_PORT}:8082 \
                         ${DOCKER_USER}/${APP_NAME}:${BUILD_NUMBER}
                 '''
@@ -219,7 +234,7 @@ pipeline {
                 script {
                     def healthy = false
                     for (int i = 1; i <= 20; i++) {
-                        def out = sh(script: 'curl -sf http://localhost:${APP_PORT}/api/students/health || true', returnStdout: true).trim()
+                        def out = sh(script: 'curl -sf http://${APP_NAME}:8082/api/students/health || true', returnStdout: true).trim()
                         if (out.contains('UP')) { healthy = true; break }
                         sleep 2
                     }
@@ -231,7 +246,7 @@ pipeline {
                 failure {
                     // Rollback: chạy lại image `latest` đã ổn định trước đó
                     echo '↩️  ROLLBACK — khôi phục image latest...'
-                    sh 'docker run -d --name ${APP_NAME} --network capstone_devops-net -p ${APP_PORT}:8082 ${DOCKER_USER}/${APP_NAME}:latest || true'
+                    sh 'docker run -d --name ${APP_NAME} --network configs_devops-net -p ${APP_PORT}:8082 ${DOCKER_USER}/${APP_NAME}:latest || true'
                 }
             }
         }
@@ -246,8 +261,8 @@ pipeline {
                 echo '🛡️  DAST — OWASP ZAP security scan'
                 // ZAP daemon chạy ở :8090; full scan theo Baseline mode
                 sh '''
-                    docker run --rm -v $(pwd)/reports:/zap/wrk owasp/zap2docker-stable zap-baseline.py \
-                        -t http://localhost:${APP_PORT} \
+                    docker run --rm --network configs_devops-net -v $(pwd)/reports:/zap/wrk owasp/zap2docker-stable zap-baseline.py \
+                        -t http://${APP_NAME}:8082 \
                         -r zap-report.html || true
                 '''
             }
@@ -305,7 +320,7 @@ pipeline {
                     echo "   Grafana (dashboard) : HTTP ${grafana}"
 
                     // ---- Health endpoint cuối cùng của ứng dụng ----
-                    def app = sh(script: 'curl -s http://localhost:${APP_PORT}/api/students/health || echo DOWN', returnStdout: true).trim()
+                    def app = sh(script: 'curl -s http://${APP_NAME}:8082/api/students/health || echo DOWN', returnStdout: true).trim()
                     echo "   App health          : ${app}"
                 }
             }
