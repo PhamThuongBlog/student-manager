@@ -24,7 +24,7 @@ pipeline {
 
     tools {
         maven 'M3'      // Maven 3.9.x (đã cấu hình ở Manage Jenkins → Tools)
-        jdk   'JDK21'   // JDK 21 (JAVA_HOME=/opt/java/openjdk)
+        jdk   'JDK17'   // JDK 21 (JAVA_HOME=/opt/java/openjdk)
     }
 
     parameters {
