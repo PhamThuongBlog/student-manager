@@ -261,7 +261,18 @@ EOF
                 echo '🛡️  DAST — OWASP ZAP security scan'
                 // ZAP baseline scan (image cũ owasp/zap2docker-stable đã bị xóa, dùng zaproxy/zap-stable)
                 sh '''
-                    docker run --rm --network configs_devops-net -v $(pwd)/reports:/zap/wrk zaproxy/zap-stable zap-baseline.py \
+                    # Tạo sẵn thư mục reports với quyền ghi để container ZAP (user zap) ghi được report
+                    mkdir -p reports
+                    chmod 777 reports
+
+                    # docker-in-docker: flag -v dùng path trên HOST (volume jenkins_home),
+                    # KHÔNG phải path bên trong container Jenkins. Nên phải lấy host path thật.
+                    JH_HOME=$(docker inspect capstone-jenkins --format '{{range .Mounts}}{{if eq .Destination "/var/jenkins_home"}}{{.Source}}{{end}}{{end}}')
+                    REPORT_DIR="${JH_HOME}/workspace/Lab10/reports"
+
+                    docker run --rm --network configs_devops-net \
+                        -v "${REPORT_DIR}:/zap/wrk" \
+                        zaproxy/zap-stable zap-baseline.py \
                         -t http://${APP_NAME}:8082 \
                         -r zap-report.html || true
                 '''
