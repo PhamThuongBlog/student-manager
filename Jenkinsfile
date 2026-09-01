@@ -259,9 +259,9 @@ EOF
             when { expression { params.RUN_DAST } }
             steps {
                 echo '🛡️  DAST — OWASP ZAP security scan'
-                // ZAP daemon chạy ở :8090; full scan theo Baseline mode
+                // ZAP baseline scan (image cũ owasp/zap2docker-stable đã bị xóa, dùng zaproxy/zap-stable)
                 sh '''
-                    docker run --rm --network configs_devops-net -v $(pwd)/reports:/zap/wrk owasp/zap2docker-stable zap-baseline.py \
+                    docker run --rm --network configs_devops-net -v $(pwd)/reports:/zap/wrk zaproxy/zap-stable zap-baseline.py \
                         -t http://${APP_NAME}:8082 \
                         -r zap-report.html || true
                 '''
