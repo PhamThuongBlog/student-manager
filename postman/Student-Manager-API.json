@@ -186,7 +186,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8082/api/students",
+          "raw": "http://student-manager:8082/api/students",
           "protocol": "http",
           "host": [
             "localhost"
@@ -206,7 +206,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8082/api/students/1",
+          "raw": "http://student-manager:8082/api/students/1",
           "protocol": "http",
           "host": [
             "localhost"
@@ -241,7 +241,7 @@
           }
         },
         "url": {
-          "raw": "http://localhost:8082/api/students",
+          "raw": "http://student-manager:8082/api/students",
           "protocol": "http",
           "host": [
             "localhost"
@@ -261,7 +261,7 @@
         "method": "DELETE",
         "header": [],
         "url": {
-          "raw": "http://localhost:8082/api/students/",
+          "raw": "http://student-manager:8082/api/students/",
           "protocol": "http",
           "host": [
             "localhost"
@@ -282,7 +282,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8082/api/students/search?q=Nguyen",
+          "raw": "http://student-manager:8082/api/students/search?q=Nguyen",
           "protocol": "http",
           "host": [
             "localhost"
@@ -309,7 +309,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8082/api/students/health",
+          "raw": "http://student-manager:8082/api/students/health",
           "protocol": "http",
           "host": [
             "localhost"
